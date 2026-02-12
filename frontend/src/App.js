@@ -2,37 +2,54 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
 
-// Backend API URL
 const API = "http://localhost:5000/api";
 
 function App() {
     const [flights, setFlights] = useState([]);
     const [user, setUser] = useState({ wallet_balance: 0, bookings: [] });
     const [msg, setMsg] = useState({ text: "", type: "" });
+    
+    //  inputs for search
+    const [searchQuery, setSearchQuery] = useState({ 
+        fromCity: "", 
+        toCity: "", 
+        travelDate: "" 
+    });
 
-    // 1. Data load function
-    const fetchData = async () => {
+    const loadDashboardData = async () => {
         try {
+            // total flights are shown on normal search
             const fRes = await axios.get(`${API}/flights`);
             const uRes = await axios.get(`${API}/user`);
             setFlights(fRes.data);
             setUser(uRes.data);
         } catch (err) {
-            console.error("Connection Error:", err);
+            console.error("Data fetching failed:", err);
         }
     };
 
     useEffect(() => {
-        fetchData();
+        loadDashboardData();
     }, []);
 
-    // 2. Booking handle  function
+    // --- Search Logic ---
+    const handleSearchSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            // Backend search route call 
+            const res = await axios.get(`${API}/flights?from=${searchQuery.fromCity}&to=${searchQuery.toCity}`);
+            setFlights(res.data);
+            console.log("Results found:", res.data.length);
+        } catch (err) {
+            setMsg({ text: "Search failed. Please try again.", type: "error" });
+        }
+    };
+
     const handleBook = async (flight) => {
         try {
-            // Step A: Attempt log  (Surge pricing check )
+            // Log attempt for surge pricing logic
             await axios.post(`${API}/log-attempt/${flight._id}`);
             
-            // Step B: Actual booking request
             const res = await axios.post(`${API}/book`, {
                 flightId: flight.flight_id,
                 airline: flight.airline,
@@ -40,90 +57,123 @@ function App() {
                 route: `${flight.departure_city} -> ${flight.arrival_city}`
             });
 
-            setMsg({ text: " Booking Success! PNR: " + res.data.booking.pnr, type: "success" });
-            generatePDF(res.data.booking); // PDF download karein
-            fetchData(); // for show Wallet and Price update 
+            setMsg({ text: "Ticket Booked! PNR: " + res.data.booking.pnr, type: "success" });
+            generatePDF(res.data.booking);
+            loadDashboardData(); 
         } catch (err) {
             setMsg({ 
-                text: err.response?.data?.message || "Booking Failed!", 
+                text: err.response?.data?.message || "Something went wrong!", 
                 type: "error" 
             });
-            fetchData(); // if error due to surge , new price 
+            loadDashboardData(); 
         }
     };
 
-    // 3. Professional PDF Generate  function
     const generatePDF = (b) => {
         const doc = new jsPDF();
         doc.setFont("helvetica", "bold");
-        doc.text("XTECHON TRAVELS - E-TICKET", 20, 20);
+        doc.text("XTECHON TRAVELS - BOARDING PASS", 20, 20);
         doc.setFont("helvetica", "normal");
         doc.line(20, 25, 190, 25);
-        doc.text(`PNR Number: ${b.pnr}`, 20, 40);
-        doc.text(`Airline: ${b.airline}`, 20, 50);
+        doc.text(`PNR: ${b.pnr}`, 20, 40);
+        doc.text(`Flight: ${b.airline}`, 20, 50);
         doc.text(`Route: ${b.route}`, 20, 60);
-        doc.text(`Amount Paid: Rs. ${b.amount_paid}`, 20, 70);
+        doc.text(`Price: Rs. ${b.amount_paid}`, 20, 70);
         doc.text(`Status: CONFIRMED`, 20, 80);
         doc.save(`Ticket_${b.pnr}.pdf`);
     };
 
     return (
-        <div className="container mt-5 py-4 shadow-lg rounded bg-light">
-            {/* Bootstrap Link */}
+        <div className="container mt-5 py-4 shadow-sm rounded bg-white border">
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
             
-            <div className="row align-items-center bg-dark text-white p-4 rounded-3 mb-4">
+            <div className="row align-items-center bg-primary text-white p-4 rounded-3 mb-4 mx-1">
                 <div className="col-md-7">
-                    <h1 className="display-6">✈️ Flight Booking Dashboard</h1>
+                    <h1 className="h2 mb-0"> TravelPortal Dashboard</h1>
                 </div>
                 <div className="col-md-5 text-end">
-                    <h3 className="text-warning">Wallet: ₹{user.wallet_balance}</h3>
+                    <span className="fs-5">Balance: ₹{user.wallet_balance}</span>
                 </div>
             </div>
 
+            {/* --- Search & Calendar UI --- */}
+            <div className="card border-0 bg-light p-4 mb-5 shadow-sm">
+                <form className="row g-3 align-items-end" onSubmit={handleSearchSubmit}>
+                    <div className="col-md-3">
+                        <label className="form-label small fw-bold">Departure</label>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="e.g. Mumbai"
+                            onChange={(e) => setSearchQuery({...searchQuery, fromCity: e.target.value})}
+                        />
+                    </div>
+                    <div className="col-md-3">
+                        <label className="form-label small fw-bold">Arrival</label>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="e.g. Delhi"
+                            onChange={(e) => setSearchQuery({...searchQuery, toCity: e.target.value})}
+                        />
+                    </div>
+                    <div className="col-md-3">
+                        <label className="form-label small fw-bold">Date</label>
+                        <input 
+                            type="date" 
+                            className="form-control" 
+                            onChange={(e) => setSearchQuery({...searchQuery, travelDate: e.target.value})}
+                        />
+                    </div>
+                    <div className="col-md-3">
+                        <button type="submit" className="btn btn-dark w-100">Find Flights</button>
+                    </div>
+                </form>
+            </div>
+
             {msg.text && (
-                <div className={`alert ${msg.type === 'success' ? 'alert-success' : 'alert-danger'} fade show`}>
+                <div className={`alert ${msg.type === 'success' ? 'alert-success' : 'alert-danger'} mx-1`}>
                     {msg.text}
                 </div>
             )}
 
-            <div className="row">
-                {/* Flight List Section */}
+            <div className="row mt-4">
                 <div className="col-md-8">
-                    <h4 className="mb-4 border-bottom pb-2">Available Flights</h4>
-                    {flights.map(f => (
-                        <div key={f._id} className="card mb-3 border-0 shadow-sm hover-shadow">
-                            <div className="card-body d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5 className="mb-1 text-primary">{f.airline} <small className="text-muted">({f.flight_id})</small></h5>
-                                    <p className="mb-0 fw-bold">{f.departure_city} ➔ {f.arrival_city}</p>
-                                    {f.isSurge && (
-                                        <span className="badge bg-danger animate-pulse">🔥 High Demand: 10% Surge Applied</span>
-                                    )}
-                                </div>
-                                <div className="text-end">
-                                    <h3 className="mb-2">₹{f.current_price}</h3>
-                                    <button onClick={() => handleBook(f)} className="btn btn-success btn-lg px-4">Book Now</button>
+                    <h5 className="mb-4">Available Options</h5>
+                    {flights.length === 0 ? <p className="text-center p-5">No flights found matching your search.</p> : 
+                        flights.map(f => (
+                            <div key={f._id} className="card mb-3 border-light shadow-sm">
+                                <div className="card-body d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 className="mb-1 text-uppercase text-primary">{f.airline}</h6>
+                                        <p className="mb-0">{f.departure_city} ➔ {f.arrival_city}</p>
+                                        {f.isSurge && (
+                                            <span className="badge bg-warning text-dark mt-2">⚡ Surge Pricing Applied</span>
+                                        )}
+                                    </div>
+                                    <div className="text-end">
+                                        <h4 className="mb-2 text-dark">₹{f.current_price}</h4>
+                                        <button onClick={() => handleBook(f)} className="btn btn-outline-success">Book Ticket</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    }
                 </div>
 
-                {/* Booking History Section */}
                 <div className="col-md-4">
-                    <h4 className="mb-4 border-bottom pb-2">Recent Bookings</h4>
-                    <div className="list-group">
+                    <h5 className="mb-4">My Bookings</h5>
+                    <div className="list-group list-group-flush border rounded">
                         {user.bookings.length === 0 ? (
-                            <p className="text-muted text-center p-4 bg-white rounded">No bookings yet.</p>
+                            <p className="p-3 text-center text-muted">No history found.</p>
                         ) : (
                             user.bookings.slice().reverse().map((b, i) => (
-                                <div key={i} className="list-group-item d-flex justify-content-between align-items-center shadow-sm mb-2 border-0">
+                                <div key={i} className="list-group-item d-flex justify-content-between align-items-center py-3">
                                     <div>
-                                        <div className="fw-bold">{b.pnr}</div>
-                                        <small className="text-muted">{b.airline}</small>
+                                        <div className="small fw-bold">{b.pnr}</div>
+                                        <div className="text-muted extra-small">{b.airline}</div>
                                     </div>
-                                    <button onClick={() => generatePDF(b)} className="btn btn-sm btn-outline-primary">Download PDF</button>
+                                    <button onClick={() => generatePDF(b)} className="btn btn-sm btn-link text-decoration-none">PDF</button>
                                 </div>
                             ))
                         )}

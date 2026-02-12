@@ -54,17 +54,42 @@ seedFlights();
 // --- API ROUTES ---
 
 // Flight list with Surge Pricing logic
+// SEARCH ROUTE
 app.get('/api/flights', async (req, res) => {
-    const flights = await Flight.find();
-    const now = new Date();
-    
-    const flightData = flights.map(f => {
-        // Agar 5 min mein 3 baar click hua toh 10% price badhao
-        const recentAttempts = f.search_history.filter(t => (now - t) < 300000);
-        const currentPrice = recentAttempts.length >= 3 ? f.base_price * 1.1 : f.base_price;
-        return { ...f._doc, current_price: Math.round(currentPrice), isSurge: recentAttempts.length >= 3 };
-    });
-    res.json(flightData);
+    try {
+        const { from, to } = req.query;
+        let query = {};
+
+        if (from) query.departure_city = new RegExp(from, 'i');
+        if (to) query.arrival_city = new RegExp(to, 'i');
+
+        const flights = await Flight.find(query);
+
+        // check for every flight for increasing the price
+        const updatedFlights = await Promise.all(flights.map(async (f) => {
+            const count = await Attempt.countDocuments({ flight_id: f._id });
+            
+            let currentPrice = f.base_price;
+            let surgeActive = false;
+
+            // Simple Logic: 3 click < 10%d increase
+            if (count >= 3) {
+                currentPrice = Math.round(f.base_price * 1.10);
+                surgeActive = true;
+            }
+
+            return { 
+                ...f._doc, 
+                current_price: currentPrice, 
+                isSurge: surgeActive 
+            };
+        }));
+
+        res.json(updatedFlights);
+    } catch (err) {
+        console.error("Fetch error:", err);
+        res.status(500).json({ error: "Data not get by Database" });
+    }
 });
 
 // Log attempt for pricing
