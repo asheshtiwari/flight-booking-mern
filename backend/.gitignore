@@ -1,0 +1,14 @@
+# Security: Do NOT upload API keys or secrets
+.env
+
+# Dependencies: Do NOT upload heavy library folders
+node_modules/
+frontend/node_modules/
+
+# Build files: These are generated automatically
+dist/
+build/
+
+# Operating System files
+.DS_Store
+Thumbs.db

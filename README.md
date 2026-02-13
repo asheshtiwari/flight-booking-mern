@@ -1,22 +1,24 @@
-#  Flight Booking System with Dynamic Pricing
+# Flight Booking System (MERN + AI)
 
-A professional MERN stack application . This system features real-time surge pricing, a virtual wallet, and automated PDF ticket generation.
+A professional flight booking application built with the MERN stack, featuring dynamic surge pricing and an integrated AI Travel Assistant.
 
-##  Key Features
-- **Dynamic Pricing Engine:** Prices increase by 10% if 3 booking attempts are made within 5 minutes (Surge logic).
-- **Virtual Wallet:** Every user starts with a ₹50,000 balance with real-time deduction and validation.
-- **Automated E-Tickets:** Instant PDF generation using `jsPDF` upon successful booking.
-- **Live Search:** Fetch real-time flight data from MongoDB.
-- **Responsive UI:** Built with React and Bootstrap for a clean, professional look.
+## Key Features
+- **Dynamic Surge Pricing:** Implementation of demand-based pricing logic (10% hike after 3 attempts).
+- **AI Travel Assistant:** Integrated Google Gemini AI to handle real-time user queries.
+- **Wallet System:** Dedicated virtual wallet for seamless ticket booking.
+- **E-Ticket Generation:** Instant PDF boarding pass generation using jsPDF.
+- **Search & Filter:** Functional search bar with city and date filtering.
 
-## 🛠️ Tech Stack
-- **Frontend:** React.js, Axios, jsPDF, Bootstrap
+## Tech Stack
+- **Frontend:** React.js, Bootstrap 5, Axios
 - **Backend:** Node.js, Express.js
 - **Database:** MongoDB (Mongoose)
+- **AI:** Google Generative AI (Gemini API)
 
-##  Installation & Setup
-
-### 1. Clone the Repository
-```bash
-git clone [https://github.com/asheshtiwari/flight-booking-system.git](https://github.com/asheshtiwari/flight-booking-system.git)
-cd flight-booking-system
+## Installation
+1. Clone the repo: `git clone [git clone [https://github.com/asheshtiwari/flight-booking-system.git](https://github.com/asheshtiwari/flight-booking-system.git)
+cd flight-booking-system]`
+2. Install Backend dependencies: `cd backend && npm install`
+3. Install Frontend dependencies: `cd frontend && npm install`
+4. Create a `.env` file in the backend folder and add your `GEMINI_API_KEY`.
+5. Start the project: `npm start`
